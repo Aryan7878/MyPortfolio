@@ -1,73 +1,82 @@
-# React + TypeScript + Vite
+# Aryan Chaudhary — Software Developer Portfolio
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A minimal, premium, Vercel-inspired software developer portfolio website. Built for speed, responsiveness, and clean aesthetics.
 
-Currently, two official plugins are available:
+🌐 **Live Demo:** [https://aryan-portfolio-f1w.pages.dev/](https://aryan-portfolio-f1w.pages.dev/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## ✨ Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **🚀 Live Engineering Dashboard**: Integrates with the GitHub REST & GraphQL APIs to display live repository stats, contribution heatmap, languages, pinned repos, and recent commit activity feed.
+- **🛡️ API Resiliency**: Features a robust caching & fallback data layer that prevents broken UI elements and rates limits by serving accurate static data when GitHub's API rate limits are exceeded or credentials are not configured.
+- **✨ Premium UI/UX**: Designed with sleek dark aesthetics, smooth Framer Motion micro-animations, glassmorphic card patterns, and a dynamic interactive custom cursor.
+- **📈 Complete SEO Suite**: Complete search engine optimization including JSON-LD schema markup, Open Graph tags, canonical headers, robots configurations, and an XML sitemap.
+- **♿ Accessibility**: Optimized semantic HTML headings, focus rings, skip links, and ARIA labels.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🛠️ Tech Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Framework**: [React 19](https://react.dev/)
+- **Build Tool**: [Vite](https://vite.dev/)
+- **Languages**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Animations**: [Framer Motion](https://www.framer.com/motion/)
+- **Data Fetching**: [TanStack React Query](https://tanstack.com/query/latest)
+- **Icons**: [Lucide React](https://lucide.dev/)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 💻 Getting Started
+
+### Prerequisites
+
+Make sure you have [Node.js](https://nodejs.org/) installed.
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Aryan7878/MyPortfolio.git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd MyPortfolio
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running Locally
+
+To start the local development server:
+```bash
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Environment Variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+To activate the real-time GitHub GraphQL data for pinned repositories, copy `.env.example` to `.env` and configure your token:
+```bash
+cp .env.example .env
 ```
+Inside `.env`:
+```env
+VITE_GITHUB_TOKEN=your_personal_access_token
+```
+
+### Production Build
+
+To build the static assets for deployment:
+```bash
+npm run build
+```
+The output will be generated inside the `dist` directory.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
