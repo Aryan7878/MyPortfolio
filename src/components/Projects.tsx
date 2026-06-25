@@ -11,6 +11,8 @@ interface Project {
   tagline: string;
   description: string;
   image: string;
+  imageWidth: number;
+  imageHeight: number;
   role: string;
   teamSize: number;
   duration: string;
@@ -30,6 +32,8 @@ const projects: Project[] = [
     description:
       "A full-stack cybersecurity education platform with an interactive dashboard, Docker-powered virtual labs (Kali Linux VM, DVWA), and an AI tutor for ethical hacking and vulnerability testing. OWASP-focused learning modules bridge theory and real-world security skills.",
     image: "/edusec.png",
+    imageWidth: 1280,
+    imageHeight: 720,
     role: "Full Stack Developer",
     teamSize: 6,
     duration: "Jul 2025 – Nov 2025",
@@ -57,6 +61,8 @@ const projects: Project[] = [
     description:
       "A full-stack web application that tracks and analyzes product price trends using an AI-based analytics engine. Calculates volatility index, trend scores, drop probability, and generates buy recommendations from historical price data.",
     image: "/smartcart.png",
+    imageWidth: 1280,
+    imageHeight: 720,
     role: "Full Stack Developer",
     teamSize: 5,
     duration: "Feb 2026 – Apr 2026",
@@ -77,10 +83,13 @@ const projects: Project[] = [
   },
 ];
 
+const PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1280' height='720' viewBox='0 0 1280 720'%3E%3Crect width='1280' height='720' fill='%23111111'/%3E%3Ctext x='640' y='360' font-family='monospace' font-size='20' fill='%23333' text-anchor='middle' dominant-baseline='middle'%3EImage unavailable%3C/text%3E%3C/svg%3E";
+
 function MetaPill({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-mono text-muted">
-      <Icon size={11} className="text-muted" />
+      <Icon size={11} className="text-muted" aria-hidden="true" />
       {label}
     </span>
   );
@@ -100,17 +109,25 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
       <motion.article
         id={`project-${project.id}`}
         whileHover={{ y: -4 }}
-        transition={{ duration: 0.3, ease: [0.21, 0.47, 0.32, 0.98] }}
-        className="group flex flex-col border border-border rounded-2xl overflow-hidden bg-surface hover:border-border-hover transition-all duration-300 hover:shadow-xl hover:shadow-black/30 h-full"
+        transition={{ duration: 0.25, ease: [0.21, 0.47, 0.32, 0.98] }}
+        className="group flex flex-col border border-border rounded-2xl overflow-hidden bg-surface hover:border-border-hover transition-all duration-250 hover:shadow-xl hover:shadow-black/30 h-full"
       >
         {/* Screenshot */}
-        <Link 
-          to={project.slug} 
-          className="block relative overflow-hidden border-b border-border bg-bg aspect-[16/9] shrink-0 group/img"
+        <Link
+          to={project.slug}
+          className="block relative overflow-hidden border-b border-border bg-bg aspect-[16/9] shrink-0 group/img focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50"
+          aria-label={`View ${project.title} case study`}
         >
           <img
             src={project.image}
-            alt={`${project.title} screenshot`}
+            alt={`${project.title} application screenshot`}
+            width={project.imageWidth}
+            height={project.imageHeight}
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = PLACEHOLDER;
+            }}
             className="w-full h-full object-cover object-top transition-transform duration-500 group-hover/img:scale-105"
           />
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -127,7 +144,9 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
           <div className="flex items-start justify-between mb-3">
             <div>
               <p className="text-xs font-mono text-muted mb-1">{project.tagline}</p>
-              <h3 className="text-lg font-semibold text-primary tracking-tight">{project.title}</h3>
+              <h3 className="text-lg font-semibold text-primary tracking-tight">
+                {project.title}
+              </h3>
             </div>
             <div className="flex items-center gap-1.5 shrink-0 ml-4 mt-0.5">
               <a
@@ -135,11 +154,11 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
                 href={project.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-1.5 border border-border rounded-lg text-secondary hover:text-primary hover:border-border-hover transition-all duration-200"
-                aria-label={`${project.title} GitHub`}
+                className="p-1.5 border border-border rounded-lg text-secondary hover:text-primary hover:border-border-hover transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                aria-label={`${project.title} on GitHub`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <GithubIcon size={13} />
+                <GithubIcon size={13} aria-hidden="true" />
               </a>
               {project.demo !== "#" && (
                 <a
@@ -147,11 +166,11 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
                   href={project.demo}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 border border-border rounded-lg text-secondary hover:text-primary hover:border-border-hover transition-all duration-200"
-                  aria-label={`${project.title} Live Demo`}
+                  className="p-1.5 border border-border rounded-lg text-secondary hover:text-primary hover:border-border-hover transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  aria-label={`${project.title} live demo`}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <ArrowUpRight size={13} />
+                  <ArrowUpRight size={13} aria-hidden="true" />
                 </a>
               )}
             </div>
@@ -165,20 +184,25 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
           </div>
 
           {/* Description */}
-          <p className="text-sm text-secondary leading-relaxed mb-4 flex-1">{project.description}</p>
+          <p className="text-sm text-secondary leading-relaxed mb-4 flex-1">
+            {project.description}
+          </p>
 
           {/* Highlights */}
-          <ul className="mb-4 space-y-1.5">
+          <ul className="mb-4 space-y-1.5" aria-label="Project highlights">
             {project.highlights.map((h) => (
               <li key={h} className="flex items-start gap-2 text-xs text-secondary">
-                <span className="w-1 h-1 rounded-full bg-muted shrink-0 mt-1.5" />
+                <span className="w-1 h-1 rounded-full bg-muted shrink-0 mt-1.5" aria-hidden="true" />
                 {h}
               </li>
             ))}
           </ul>
 
           {/* Metrics */}
-          <div className="grid grid-cols-3 gap-2 mb-4 p-3.5 bg-bg rounded-xl border border-border">
+          <div
+            className="grid grid-cols-3 gap-2 mb-4 p-3.5 bg-bg rounded-xl border border-border"
+            aria-label="Project metrics"
+          >
             {project.metrics.map((m) => (
               <div key={m.label} className="text-center">
                 <p className="text-sm font-semibold text-primary leading-none mb-1">{m.value}</p>
@@ -188,7 +212,7 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
           </div>
 
           {/* Tags */}
-          <div className="flex flex-wrap gap-1.5 mb-5">
+          <div className="flex flex-wrap gap-1.5 mb-5" aria-label="Technologies used">
             {project.tags.map((tag) => (
               <Tag key={tag} label={tag} />
             ))}
@@ -197,10 +221,15 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
           {/* View Case Study link */}
           <Link
             to={project.slug}
-            className="inline-flex items-center gap-1.5 text-xs font-mono text-muted hover:text-primary transition-colors duration-200 group/link"
+            className="inline-flex items-center gap-1.5 text-xs font-mono text-muted hover:text-primary transition-colors duration-200 group/link focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-sm"
+            aria-label={`View ${project.title} case study`}
           >
             View case study
-            <ArrowUpRight size={11} className="transition-transform duration-200 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5" />
+            <ArrowUpRight
+              size={11}
+              className="transition-transform duration-200 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5"
+              aria-hidden="true"
+            />
           </Link>
         </div>
       </motion.article>
@@ -218,8 +247,8 @@ export function Projects() {
             Selected work
           </h2>
           <p className="text-secondary text-sm mb-12 max-w-lg">
-            End-to-end projects built with production-quality code, real team
-            collaboration, and a focus on measurable impact.
+            End-to-end projects built with production-quality code, real team collaboration, and a
+            focus on measurable impact.
           </p>
         </FadeIn>
 

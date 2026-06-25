@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowUpRight, FileText, ArrowRight } from "lucide-react";
+import { ArrowUpRight, Download, FileText, ArrowRight } from "lucide-react";
 import { GithubIcon, LinkedinIcon } from "./SocialIcons";
 
 const containerVariants = {
@@ -23,6 +23,8 @@ const currentlyItems = [
   "Open to SDE Opportunities",
 ];
 
+const RESUME_URL = "/Aryan_Chaudhary_Resume.pdf";
+
 export function Hero() {
   return (
     <section
@@ -33,6 +35,7 @@ export function Hero() {
       {/* Subtle grid texture */}
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        aria-hidden="true"
         style={{
           backgroundImage: `linear-gradient(#ededed 1px, transparent 1px), linear-gradient(90deg, #ededed 1px, transparent 1px)`,
           backgroundSize: "64px 64px",
@@ -40,6 +43,7 @@ export function Hero() {
       />
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] pointer-events-none"
+        aria-hidden="true"
         style={{
           background: "radial-gradient(circle, rgba(255,255,255,0.022) 0%, transparent 70%)",
         }}
@@ -57,7 +61,10 @@ export function Hero() {
             {/* Status badge */}
             <motion.div variants={itemVariants} className="mb-7">
               <span className="inline-flex items-center gap-2 px-3 py-1 text-xs font-mono text-secondary border border-border rounded-full bg-surface/50">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span
+                  className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"
+                  aria-hidden="true"
+                />
                 Actively Seeking SDE Opportunities
               </span>
             </motion.div>
@@ -96,34 +103,52 @@ export function Hero() {
             {/* CTA Buttons */}
             <motion.div variants={itemVariants} className="flex flex-col gap-3 mb-10">
               <div className="flex flex-wrap items-center gap-3">
+                {/* View Work */}
                 <a
                   id="hero-view-work-btn"
                   href="#projects"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-bg text-sm font-medium rounded-md hover:bg-accent transition-colors duration-200"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-bg text-sm font-medium rounded-md hover:bg-accent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-bg"
                 >
                   View Work
-                  <ArrowUpRight size={15} />
+                  <ArrowUpRight size={15} aria-hidden="true" />
                 </a>
+
+                {/* View Resume */}
                 <a
-                  id="hero-resume-btn"
-                  href="/Aryan_Chaudhary_Resume.pdf"
+                  id="hero-resume-view-btn"
+                  href={RESUME_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-primary text-sm rounded-md hover:border-border-hover hover:bg-surface transition-all duration-200"
+                  aria-label="View resume (opens in new tab)"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-primary text-sm rounded-md hover:border-border-hover hover:bg-surface transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg"
                 >
-                  <FileText size={14} />
-                  Resume
+                  <FileText size={14} aria-hidden="true" />
+                  View Resume
+                </a>
+
+                {/* Download Resume */}
+                <a
+                  id="hero-resume-download-btn"
+                  href={RESUME_URL}
+                  download="Aryan_Chaudhary_Resume.pdf"
+                  aria-label="Download resume as PDF"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-secondary text-sm rounded-md hover:border-border-hover hover:bg-surface hover:text-primary transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-bg"
+                >
+                  <Download size={14} aria-hidden="true" />
+                  Download
                 </a>
               </div>
+
               <div className="flex items-center gap-1">
                 <a
                   id="hero-github-btn"
                   href="https://github.com/Aryan7878"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-secondary text-sm hover:text-primary transition-colors duration-200 rounded-md hover:bg-surface"
+                  aria-label="GitHub profile"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-secondary text-sm hover:text-primary transition-colors duration-200 rounded-md hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 >
-                  <GithubIcon size={14} />
+                  <GithubIcon size={14} aria-hidden="true" />
                   GitHub
                 </a>
                 <a
@@ -131,9 +156,10 @@ export function Hero() {
                   href="https://www.linkedin.com/in/aryanch7878"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-secondary text-sm hover:text-primary transition-colors duration-200 rounded-md hover:bg-surface"
+                  aria-label="LinkedIn profile"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-secondary text-sm hover:text-primary transition-colors duration-200 rounded-md hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 >
-                  <LinkedinIcon size={14} />
+                  <LinkedinIcon size={14} aria-hidden="true" />
                   LinkedIn
                 </a>
               </div>
@@ -142,11 +168,13 @@ export function Hero() {
             {/* Currently */}
             <motion.div variants={itemVariants}>
               <div className="p-5 border border-border rounded-xl bg-surface/50">
-                <p className="text-xs font-mono text-muted mb-3 tracking-widest uppercase">Currently</p>
+                <p className="text-xs font-mono text-muted mb-3 tracking-widest uppercase">
+                  Currently
+                </p>
                 <ul className="space-y-2">
                   {currentlyItems.map((item) => (
                     <li key={item} className="flex items-center gap-2.5 text-sm text-secondary">
-                      <ArrowRight size={12} className="text-muted shrink-0" />
+                      <ArrowRight size={12} className="text-muted shrink-0" aria-hidden="true" />
                       {item}
                     </li>
                   ))}
@@ -170,11 +198,18 @@ export function Hero() {
             >
               <div
                 className="w-full h-full rounded-2xl overflow-hidden border border-border/60"
-                style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3)" }}
+                style={{
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3)",
+                }}
               >
                 <img
                   src="/aryan.jpg"
-                  alt="Aryan Chaudhary"
+                  alt="Aryan Chaudhary, Software Developer"
+                  width={350}
+                  height={437}
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
                   className="w-full h-full object-cover object-top"
                 />
               </div>
@@ -189,6 +224,7 @@ export function Hero() {
         animate={{ opacity: 1 }}
         transition={{ delay: 1.4, duration: 0.6 }}
         className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+        aria-hidden="true"
       >
         <span className="text-xs font-mono text-muted tracking-widest">scroll</span>
         <motion.div

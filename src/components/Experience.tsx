@@ -6,8 +6,7 @@ const experiences = [
     id: "placement-coordinator",
     company: "GLA University",
     role: "Placement Drive Coordinator",
-    period: "August 2025 – Present",
-    duration: "10 months",
+    period: "September 2024",
     location: "Mathura, India",
     description:
       "Coordinated campus placement drives, acting as a liaison between the university training & placement cell, corporate recruiters, and over 500+ student candidates during high-pressure recruitment cycles.",
@@ -23,8 +22,7 @@ const experiences = [
     id: "sih-2025",
     company: "Smart India Hackathon",
     role: "Team Leader (SIH 2025)",
-    period: "September 2024 – January 2025",
-    duration: "5 months",
+    period: "August 2025",
     location: "Mathura, India",
     description:
       "Led a 6-member team of developers to design, develop, and present a full-stack software prototype addressing a national-level problem statement. Orchestrated system design, API contracts, and panel reviews.",

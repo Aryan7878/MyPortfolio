@@ -1,166 +1,64 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, useInView, useAnimation } from "framer-motion";
+import { GitHubCalendar } from "react-github-calendar";
 import {
   GitBranch,
   Star,
   ExternalLink,
   GitCommit,
   GitMerge,
+  GitPullRequest,
   Zap,
   BookOpen,
   Clock,
   Activity,
   Code2,
+  AlertCircle,
+  Plus,
+  Tag,
+  MessageSquare,
 } from "lucide-react";
 import { FadeIn } from "./FadeIn";
+import {
+  fetchGitHubUser,
+  fetchRepoAggregates,
+  fetchLanguageStats,
+  fetchPublicEvents,
+  fetchPinnedRepos,
+  fetchContributionStats,
+  timeAgo,
+  type LanguageStat,
+  type PinnedRepo,
+  type ActivityEvent,
+} from "../lib/github";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface DayData {
-  level: 0 | 1 | 2 | 3 | 4;
-  count: number;
-  date: Date;
+// ─── Skeleton shimmer ─────────────────────────────────────────────────────────
+function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`rounded-lg bg-gradient-to-r from-[#1a1a1a] via-[#222] to-[#1a1a1a] bg-[length:400%_100%] animate-pulse ${className}`}
+    />
+  );
 }
 
-interface TooltipState {
-  count: number;
-  date: Date;
+// ─── Error card ───────────────────────────────────────────────────────────────
+function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-8 text-center">
+      <AlertCircle size={18} className="text-muted" />
+      <p className="text-xs text-muted font-mono max-w-[220px] leading-relaxed">{message}</p>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="text-[10px] font-mono text-secondary hover:text-primary transition-colors border border-border px-3 py-1 rounded-md"
+        >
+          Retry
+        </button>
+      )}
+    </div>
+  );
 }
-
-// ─── Contribution data ────────────────────────────────────────────────────────
-const generateContributions = (): DayData[][] => {
-  const weeks: DayData[][] = [];
-  const today = new Date();
-  const WEEKS = 53;
-
-  for (let w = 0; w < WEEKS; w++) {
-    const week: DayData[] = [];
-    for (let d = 0; d < 7; d++) {
-      const dayOffset = w * 7 + d;
-      const date = new Date(today);
-      date.setDate(today.getDate() - (WEEKS * 7 - dayOffset));
-
-      const isWeekend = d === 0 || d === 6;
-      const seed = Math.sin(dayOffset * 0.17 + 1.3) * Math.cos(dayOffset * 0.06 + 0.4);
-
-      let level: 0 | 1 | 2 | 3 | 4 = 0;
-      if (isWeekend) {
-        if (seed > 0.65) level = 2;
-        else if (seed > 0.4) level = 1;
-      } else {
-        if (seed > 0.72) level = 4;
-        else if (seed > 0.35) level = 3;
-        else if (seed > -0.1) level = 2;
-        else if (seed > -0.55) level = 1;
-      }
-
-      const countMap: Record<number, number> = {
-        0: 0,
-        1: 1 + Math.abs(Math.round(seed * 1.5)),
-        2: 3 + Math.abs(Math.round(seed * 2.5)),
-        3: 6 + Math.abs(Math.round(seed * 4)),
-        4: 10 + Math.abs(Math.round(seed * 6)),
-      };
-
-      week.push({ level, count: countMap[level], date });
-    }
-    weeks.push(week);
-  }
-  return weeks;
-};
-
-const contributionsData = generateContributions();
-
-const getMonthLabels = () => {
-  const labels: { label: string; weekIndex: number }[] = [];
-  let lastMonth = -1;
-  contributionsData.forEach((week, wIndex) => {
-    const firstDay = week[0];
-    if (!firstDay) return;
-    const month = firstDay.date.getMonth();
-    if (month !== lastMonth) {
-      labels.push({
-        label: firstDay.date.toLocaleDateString("en-US", { month: "short" }),
-        weekIndex: wIndex,
-      });
-      lastMonth = month;
-    }
-  });
-  return labels;
-};
-
-const monthLabels = getMonthLabels();
-
-const cellColor = (level: number) => {
-  switch (level) {
-    case 1: return { bg: "#0e4429", border: "#196436" };
-    case 2: return { bg: "#006d32", border: "#26a641" };
-    case 3: return { bg: "#26a641", border: "#39d353" };
-    case 4: return { bg: "#39d353", border: "#56f97f" };
-    default: return { bg: "#161b22", border: "#21262d" };
-  }
-};
-
-// ─── Stats ────────────────────────────────────────────────────────────────────
-const githubStats = [
-  { label: "Repositories", value: 24, suffix: "", description: "Public & private projects", icon: BookOpen },
-  { label: "Contributions", value: 1420, suffix: "+", description: "+18% vs last year", icon: Activity },
-  { label: "Current Streak", value: 14, suffix: " days", description: "Consecutive commit days", icon: Zap },
-  { label: "Active Days", value: 218, suffix: "", description: "Days with commits this year", icon: Clock },
-];
-
-// ─── Languages ────────────────────────────────────────────────────────────────
-const languages = [
-  { name: "JavaScript", percentage: 42, color: "#f1e05a" },
-  { name: "TypeScript", percentage: 31, color: "#3178c6" },
-  { name: "Python", percentage: 13, color: "#3572a5" },
-  { name: "HTML / CSS", percentage: 8, color: "#e34c26" },
-  { name: "Dockerfile", percentage: 4, color: "#384d54" },
-  { name: "Shell", percentage: 2, color: "#89e051" },
-];
-
-// ─── Repos ────────────────────────────────────────────────────────────────────
-const pinnedRepos = [
-  {
-    name: "edusec-labs",
-    description: "Docker-powered virtual sandbox for cybersecurity learning modules and offensive security challenges.",
-    lang: "TypeScript",
-    langColor: "#3178c6",
-    stars: 8,
-    forks: 3,
-    updatedAt: "2 days ago",
-    link: "https://github.com/Aryan7878/edusec-lab",
-  },
-  {
-    name: "smartcart",
-    description: "Price intelligence platform with regression analytics, real-time scrapers, and buy-score engine.",
-    lang: "JavaScript",
-    langColor: "#f1e05a",
-    stars: 12,
-    forks: 4,
-    updatedAt: "5 days ago",
-    link: "https://github.com/Aryan7878/smartcart",
-  },
-  {
-    name: "portfolio",
-    description: "Personal engineering portfolio built with Vite, React, and Framer Motion. Fully open source.",
-    lang: "TypeScript",
-    langColor: "#3178c6",
-    stars: 5,
-    forks: 1,
-    updatedAt: "today",
-    link: "https://github.com/Aryan7878",
-  },
-];
-
-// ─── Activity ─────────────────────────────────────────────────────────────────
-const recentActivity = [
-  { icon: GitMerge, type: "Merged PR", repo: "edusec-labs", desc: "Implemented Docker integration", date: "2d ago" },
-  { icon: GitCommit, type: "Commit", repo: "edusec-labs", desc: "Built AI Tutor module with LangChain", date: "3d ago" },
-  { icon: GitCommit, type: "Commit", repo: "smartcart", desc: "Analytics engine with linear regression", date: "5d ago" },
-  { icon: GitMerge, type: "Merged PR", repo: "smartcart", desc: "Improved buy-score recommendation system", date: "1w ago" },
-  { icon: GitCommit, type: "Commit", repo: "portfolio", desc: "Designed portfolio v2 with Framer Motion", date: "1w ago" },
-  { icon: GitCommit, type: "Commit", repo: "edusec-labs", desc: "Strengthened JWT auth & route guards", date: "2w ago" },
-];
 
 // ─── Animated counter ─────────────────────────────────────────────────────────
 function AnimatedCounter({ target, suffix = "" }: { target: number; suffix?: string }) {
@@ -183,13 +81,24 @@ function AnimatedCounter({ target, suffix = "" }: { target: number; suffix?: str
 
   return (
     <span ref={ref}>
-      {count.toLocaleString()}{suffix}
+      {count.toLocaleString()}
+      {suffix}
     </span>
   );
 }
 
 // ─── Language bar ─────────────────────────────────────────────────────────────
-function LangBar({ name, percentage, color, delay }: { name: string; percentage: number; color: string; delay: number }) {
+function LangBar({
+  name,
+  percentage,
+  color,
+  delay,
+}: {
+  name: string;
+  percentage: number;
+  color: string;
+  delay: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-40px" });
   const controls = useAnimation();
@@ -205,8 +114,13 @@ function LangBar({ name, percentage, color, delay }: { name: string; percentage:
 
   return (
     <div ref={ref} className="flex items-center gap-3">
-      <span className="w-[88px] shrink-0 text-xs font-mono text-secondary text-right">{name}</span>
-      <div className="flex-1 h-[5px] rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+      <span className="w-[88px] shrink-0 text-xs font-mono text-secondary text-right truncate">
+        {name}
+      </span>
+      <div
+        className="flex-1 h-[5px] rounded-full overflow-hidden"
+        style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+      >
         <motion.div
           initial={{ width: 0 }}
           animate={controls}
@@ -214,18 +128,209 @@ function LangBar({ name, percentage, color, delay }: { name: string; percentage:
           style={{ backgroundColor: color }}
         />
       </div>
-      <span className="w-8 shrink-0 text-[10px] font-mono text-muted">{percentage}%</span>
+      <span className="w-10 shrink-0 text-[10px] font-mono text-muted">
+        {percentage.toFixed(1)}%
+      </span>
     </div>
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Activity event renderer ──────────────────────────────────────────────────
+function eventToActivity(event: ActivityEvent): {
+  icon: React.ElementType;
+  type: string;
+  repo: string;
+  desc: string;
+  date: string;
+  link: string;
+} | null {
+  const repoName = event.repo.name.split("/")[1] ?? event.repo.name;
+  const repoLink = `https://github.com/${event.repo.name}`;
+  const date = timeAgo(event.created_at);
+
+  switch (event.type) {
+    case "PushEvent": {
+      const commits = (event.payload.commits as Array<{ message: string }> | undefined) ?? [];
+      const msg = commits[0]?.message?.split("\n")[0] ?? "Pushed commits";
+      return { icon: GitCommit, type: "Commit", repo: repoName, desc: msg, date, link: repoLink };
+    }
+    case "PullRequestEvent": {
+      const action = event.payload.action as string;
+      if (action === "closed" && event.payload.pull_request) {
+        const pr = event.payload.pull_request as { merged?: boolean; title?: string };
+        if (pr.merged) {
+          return {
+            icon: GitMerge,
+            type: "Merged PR",
+            repo: repoName,
+            desc: (pr.title as string) ?? "Merged pull request",
+            date,
+            link: repoLink,
+          };
+        }
+      }
+      if (action === "opened") {
+        const pr = event.payload.pull_request as { title?: string };
+        return {
+          icon: GitPullRequest,
+          type: "Opened PR",
+          repo: repoName,
+          desc: (pr.title as string) ?? "Opened pull request",
+          date,
+          link: repoLink,
+        };
+      }
+      return null;
+    }
+    case "CreateEvent": {
+      const refType = event.payload.ref_type as string;
+      if (refType === "repository") {
+        return {
+          icon: Plus,
+          type: "Created repo",
+          repo: repoName,
+          desc: `Created repository ${repoName}`,
+          date,
+          link: repoLink,
+        };
+      }
+      if (refType === "tag") {
+        return {
+          icon: Tag,
+          type: "Tagged release",
+          repo: repoName,
+          desc: `Tagged ${event.payload.ref ?? ""}`,
+          date,
+          link: repoLink,
+        };
+      }
+      return null;
+    }
+    case "IssuesEvent": {
+      const issue = event.payload.issue as { title?: string };
+      return {
+        icon: MessageSquare,
+        type: "Issue",
+        repo: repoName,
+        desc: (issue?.title as string) ?? "Issue activity",
+        date,
+        link: repoLink,
+      };
+    }
+    case "WatchEvent":
+      return null; // skip stars
+    default:
+      return null;
+  }
+}
+
+// ─── Stats card skeletons ─────────────────────────────────────────────────────
+function StatsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="p-6 border border-border rounded-2xl bg-surface">
+          <Skeleton className="w-4 h-4 mb-4" />
+          <Skeleton className="w-16 h-6 mb-2" />
+          <Skeleton className="w-24 h-3 mb-1" />
+          <Skeleton className="w-20 h-2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export function GitHubActivity() {
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const totalContributions = contributionsData.flat().reduce((s, d) => s + d.count, 0);
+  // ── Data queries ─────────────────────────────────────────────────────────
+  const userQuery = useQuery({
+    queryKey: ["gh-user"],
+    queryFn: fetchGitHubUser,
+  });
+
+  const aggregatesQuery = useQuery({
+    queryKey: ["gh-aggregates"],
+    queryFn: fetchRepoAggregates,
+  });
+
+  const langQuery = useQuery({
+    queryKey: ["gh-languages"],
+    queryFn: fetchLanguageStats,
+  });
+
+  const eventsQuery = useQuery({
+    queryKey: ["gh-events"],
+    queryFn: fetchPublicEvents,
+  });
+
+  const pinnedQuery = useQuery({
+    queryKey: ["gh-pinned"],
+    queryFn: fetchPinnedRepos,
+  });
+
+  const contribQuery = useQuery({
+    queryKey: ["gh-contributions"],
+    queryFn: fetchContributionStats,
+  });
+
+  // ── Derived values ────────────────────────────────────────────────────────
+  const user = userQuery.data;
+  const aggregates = aggregatesQuery.data;
+  const langs: LanguageStat[] = langQuery.data ?? [];
+  const pinned: PinnedRepo[] = pinnedQuery.data ?? [];
+  const contrib = contribQuery.data;
+
+  const statsLoading = userQuery.isLoading || aggregatesQuery.isLoading || contribQuery.isLoading;
+
+  const statsData = [
+    {
+      label: "Repositories",
+      value: user?.public_repos ?? 0,
+      suffix: "",
+      description: "Public repositories",
+      icon: BookOpen,
+    },
+    {
+      label: "Contributions",
+      value: contrib?.totalContributions ?? 0,
+      suffix: "+",
+      description: "This year",
+      icon: Activity,
+    },
+    {
+      label: "Current Streak",
+      value: contrib?.currentStreak ?? 0,
+      suffix: " days",
+      description: "Consecutive commit days",
+      icon: Zap,
+    },
+    {
+      label: "Followers",
+      value: user?.followers ?? 0,
+      suffix: "",
+      description: `Following ${user?.following ?? 0}`,
+      icon: Clock,
+    },
+  ];
+
+  // Activity feed — filter events to meaningful types, limit to 6
+  const activityItems = (eventsQuery.data ?? [])
+    .map(eventToActivity)
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .slice(0, 6);
+
+  const now = new Date();
+  const lastUpdated = `${now.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  })} at ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
 
   return (
-    <section id="github" className="py-28 border-t border-border relative" aria-label="GitHub Activity Section">
+    <section
+      id="github"
+      className="py-28 border-t border-border relative"
+      aria-label="GitHub Activity Section"
+    >
       <div className="section-container">
         {/* Header */}
         <FadeIn>
@@ -234,31 +339,36 @@ export function GitHubActivity() {
             Engineering Dashboard
           </h2>
           <p className="text-secondary text-sm mb-14 max-w-lg">
-            Consistent coding habits, open-source contributions, and technical depth — built in public.
+            Consistent coding habits, open-source contributions, and technical depth — built in
+            public.
           </p>
         </FadeIn>
 
         {/* Stats row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {githubStats.map((stat, i) => (
-            <FadeIn key={stat.label} delay={i * 0.06}>
-              <div className="p-6 border border-border rounded-2xl bg-surface hover:border-border-hover transition-colors duration-200 cursor-default">
-                <stat.icon size={14} className="text-muted mb-4" />
-                <p className="text-2xl font-semibold text-primary leading-none mb-1.5">
-                  <AnimatedCounter target={stat.value} suffix={stat.suffix} />
-                </p>
-                <p className="text-xs font-medium text-secondary mb-0.5">{stat.label}</p>
-                <p className="text-[10px] font-mono text-muted">{stat.description}</p>
-              </div>
-            </FadeIn>
-          ))}
-        </div>
+        {statsLoading ? (
+          <StatsSkeleton />
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {statsData.map((stat, i) => (
+              <FadeIn key={stat.label} delay={i * 0.06}>
+                <div className="p-6 border border-border rounded-2xl bg-surface hover:border-border-hover transition-colors duration-200 cursor-default">
+                  <stat.icon size={14} className="text-muted mb-4" />
+                  <p className="text-2xl font-semibold text-primary leading-none mb-1.5">
+                    <AnimatedCounter target={stat.value} suffix={stat.suffix} />
+                  </p>
+                  <p className="text-xs font-medium text-secondary mb-0.5">{stat.label}</p>
+                  <p className="text-[10px] font-mono text-muted">{stat.description}</p>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        )}
 
         {/* Main grid */}
         <div className="grid lg:grid-cols-[1.9fr_1fr] gap-6 items-start">
-          {/* Left */}
+          {/* Left column */}
           <div className="space-y-6">
-            {/* Heatmap */}
+            {/* Contribution heatmap */}
             <FadeIn>
               <div className="relative p-7 border border-border rounded-2xl bg-surface overflow-hidden">
                 {/* Radial spotlight */}
@@ -270,109 +380,47 @@ export function GitHubActivity() {
                   }}
                 />
 
-                {/* Heatmap header */}
+                {/* Header */}
                 <div className="relative flex flex-wrap items-start justify-between gap-4 mb-6">
                   <div>
                     <h3 className="text-sm font-semibold text-primary">Contribution Graph</h3>
                     <p className="text-[11px] text-muted mt-0.5 font-mono">
-                      {totalContributions.toLocaleString()} contributions · Last updated today
+                      {contribQuery.isLoading
+                        ? "Loading…"
+                        : contribQuery.error
+                        ? "Could not load contribution total"
+                        : `${contrib?.totalContributions.toLocaleString()} contributions · Last updated ${lastUpdated}`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted font-mono">
-                    <span>Less</span>
-                    {([0, 1, 2, 3, 4] as const).map((l) => {
-                      const c = cellColor(l);
-                      return (
-                        <div
-                          key={l}
-                          className="w-3 h-3 rounded-[3px]"
-                          style={{ backgroundColor: c.bg, border: `1px solid ${c.border}` }}
-                        />
-                      );
-                    })}
-                    <span>More</span>
-                  </div>
-                </div>
-
-                {/* Grid */}
-                <div className="relative overflow-x-auto pb-2 select-none">
-                  {/* Month labels */}
-                  <div className="relative h-4 min-w-[620px] mb-1">
-                    {monthLabels.map(({ label, weekIndex }) => (
-                      <span
-                        key={`${label}-${weekIndex}`}
-                        className="absolute text-[9px] font-mono text-muted"
-                        style={{ left: `${(weekIndex / 53) * 100}%` }}
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-1 min-w-[620px]">
-                    {/* Day-of-week axis */}
-                    <div className="flex flex-col gap-[3px] mr-1">
-                      {["", "Mon", "", "Wed", "", "Fri", ""].map((d, i) => (
-                        <div
-                          key={i}
-                          className="h-[10px] text-[8px] font-mono text-muted leading-none flex items-center"
-                        >
-                          {d}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Cells */}
-                    <div className="flex gap-[3px]">
-                      {contributionsData.map((week, wIndex) => (
-                        <div key={wIndex} className="flex flex-col gap-[3px]">
-                          {week.map((day, dIndex) => {
-                            const c = cellColor(day.level);
-                            return (
-                              <motion.div
-                                key={dIndex}
-                                initial={{ opacity: 0, scale: 0.5 }}
-                                whileInView={{ opacity: 1, scale: 1 }}
-                                viewport={{ once: true }}
-                                transition={{
-                                  duration: 0.2,
-                                  delay: (wIndex * 7 + dIndex) * 0.0008,
-                                  ease: "easeOut",
-                                }}
-                                className="w-[10px] h-[10px] rounded-[2px] cursor-crosshair transition-transform hover:scale-125"
-                                style={{ backgroundColor: c.bg, border: `1px solid ${c.border}` }}
-                                onMouseEnter={() => setTooltip({ count: day.count, date: day.date })}
-                                onMouseLeave={() => setTooltip(null)}
-                              />
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status bar */}
-                <div className="relative flex items-center justify-between mt-5 text-[11px] font-mono">
-                  <span>
-                    {tooltip ? (
-                      <span className="text-secondary">
-                        {tooltip.count} {tooltip.count === 1 ? "contribution" : "contributions"} on{" "}
-                        {tooltip.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </span>
-                    ) : (
-                      <span className="text-muted">Hover a cell for details</span>
-                    )}
-                  </span>
                   <a
                     href="https://github.com/Aryan7878"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-muted hover:text-primary transition-colors"
+                    className="inline-flex items-center gap-1 text-[10px] font-mono text-muted hover:text-primary transition-colors"
                   >
                     github.com/Aryan7878
                     <ExternalLink size={9} />
                   </a>
+                </div>
+
+                {/* Real contribution calendar */}
+                <div className="relative overflow-x-auto pb-2 select-none">
+                  <GitHubCalendar
+                    username="Aryan7878"
+                    colorScheme="dark"
+                    theme={{
+                      dark: ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"],
+                    }}
+                    fontSize={10}
+                    blockSize={10}
+                    blockMargin={3}
+                    blockRadius={2}
+                    style={{ color: "#555", fontFamily: "JetBrains Mono, monospace" }}
+                    labels={{
+                      totalCount: "{{count}} contributions in the last year",
+                    }}
+                    errorMessage="Unable to load contribution graph"
+                  />
                 </div>
               </div>
             </FadeIn>
@@ -383,47 +431,103 @@ export function GitHubActivity() {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h3 className="text-sm font-semibold text-primary">Recent Activity</h3>
-                    <p className="text-[11px] text-muted mt-0.5">Latest commits and pull requests</p>
+                    <p className="text-[11px] text-muted mt-0.5">
+                      Latest commits and pull requests
+                    </p>
                   </div>
                   <Code2 size={14} className="text-muted" />
                 </div>
-                <ol className="relative border-l border-border ml-2">
-                  {recentActivity.map((item, i) => (
-                    <FadeIn key={i} delay={i * 0.05}>
-                      <li className="pl-6 pb-5 last:pb-0 relative">
-                        <span className="absolute -left-[9px] top-0.5 w-[17px] h-[17px] rounded-full bg-surface border border-border flex items-center justify-center">
-                          <item.icon size={8} className="text-muted" />
-                        </span>
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs text-primary font-medium leading-snug">{item.desc}</p>
-                            <p className="text-[10px] font-mono text-muted mt-0.5">
-                              <span className="text-secondary">{item.type}</span>
-                              {" · "}{item.repo}
-                            </p>
-                          </div>
-                          <span className="text-[10px] font-mono text-muted shrink-0 pt-0.5">{item.date}</span>
+
+                {eventsQuery.isLoading ? (
+                  <div className="space-y-4 ml-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="flex gap-3">
+                        <Skeleton className="w-4 h-4 rounded-full shrink-0 mt-0.5" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-3 w-full" />
+                          <Skeleton className="h-2 w-2/3" />
                         </div>
-                      </li>
-                    </FadeIn>
-                  ))}
-                </ol>
+                      </div>
+                    ))}
+                  </div>
+                ) : eventsQuery.error || activityItems.length === 0 ? (
+                  <ErrorCard
+                    message={
+                      eventsQuery.error
+                        ? "Could not load activity feed."
+                        : "No recent public activity found."
+                    }
+                    onRetry={() => eventsQuery.refetch()}
+                  />
+                ) : (
+                  <ol className="relative border-l border-border ml-2">
+                    {activityItems.map((item, i) => (
+                      <FadeIn key={i} delay={i * 0.05}>
+                        <li className="pl-6 pb-5 last:pb-0 relative">
+                          <span className="absolute -left-[9px] top-0.5 w-[17px] h-[17px] rounded-full bg-surface border border-border flex items-center justify-center">
+                            <item.icon size={8} className="text-muted" />
+                          </span>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs text-primary font-medium leading-snug truncate">
+                                {item.desc}
+                              </p>
+                              <p className="text-[10px] font-mono text-muted mt-0.5">
+                                <span className="text-secondary">{item.type}</span>
+                                {" · "}
+                                <a
+                                  href={item.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:text-primary transition-colors"
+                                >
+                                  {item.repo}
+                                </a>
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-mono text-muted shrink-0 pt-0.5">
+                              {item.date}
+                            </span>
+                          </div>
+                        </li>
+                      </FadeIn>
+                    ))}
+                  </ol>
+                )}
               </div>
             </FadeIn>
           </div>
 
-          {/* Right */}
+          {/* Right column */}
           <div className="space-y-6">
             {/* Languages */}
             <FadeIn>
               <div className="p-7 border border-border rounded-2xl bg-surface">
                 <h3 className="text-sm font-semibold text-primary mb-1">Languages</h3>
-                <p className="text-[11px] text-muted mb-6 font-mono">By repository usage</p>
-                <div className="space-y-3.5">
-                  {languages.map((lang, i) => (
-                    <LangBar key={lang.name} {...lang} delay={i * 0.06} />
-                  ))}
-                </div>
+                <p className="text-[11px] text-muted mb-6 font-mono">By repository byte usage</p>
+
+                {langQuery.isLoading ? (
+                  <div className="space-y-3.5">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <Skeleton className="w-[88px] h-3" />
+                        <Skeleton className="flex-1 h-[5px]" />
+                        <Skeleton className="w-8 h-3" />
+                      </div>
+                    ))}
+                  </div>
+                ) : langQuery.error ? (
+                  <ErrorCard
+                    message="Could not load language data."
+                    onRetry={() => langQuery.refetch()}
+                  />
+                ) : (
+                  <div className="space-y-3.5">
+                    {langs.map((lang, i) => (
+                      <LangBar key={lang.name} {...lang} delay={i * 0.06} />
+                    ))}
+                  </div>
+                )}
               </div>
             </FadeIn>
 
@@ -434,44 +538,139 @@ export function GitHubActivity() {
                   Pinned Repositories
                 </p>
               </FadeIn>
-              {pinnedRepos.map((repo, i) => (
-                <FadeIn key={repo.name} delay={i * 0.07}>
-                  <a
-                    href={repo.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group block p-5 border border-border rounded-xl bg-surface hover:border-border-hover hover:bg-[#161616] hover:-translate-y-0.5 transition-all duration-200 hover:shadow-xl hover:shadow-black/25"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <svg width="13" height="13" viewBox="0 0 16 16" className="text-muted shrink-0" fill="currentColor">
-                          <path d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 010-1.5h1.75v-2h-8a1 1 0 000 2h.75a.75.75 0 010 1.5H4.5A2.5 2.5 0 012 13.5v-11zm10.5-1V9h-8c-.356 0-.694.074-1 .208V2.5a1 1 0 011-1h8zM5 12.25v3.25a.25.25 0 00.4.2l1.45-1.087a.25.25 0 01.3 0L8.6 15.7a.25.25 0 00.4-.2v-3.25a.25.25 0 00-.25-.25h-3.5a.25.25 0 00-.25.25z" />
-                        </svg>
-                        <span className="text-sm font-mono font-medium text-primary group-hover:text-white truncate transition-colors">
-                          {repo.name}
-                        </span>
+
+              {pinnedQuery.isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="p-5 border border-border rounded-xl bg-surface space-y-3">
+                    <div className="flex justify-between">
+                      <Skeleton className="w-32 h-4" />
+                      <Skeleton className="w-4 h-4" />
+                    </div>
+                    <Skeleton className="w-full h-3" />
+                    <Skeleton className="w-5/6 h-3" />
+                    <div className="flex gap-4">
+                      <Skeleton className="w-16 h-3" />
+                      <Skeleton className="w-10 h-3" />
+                      <Skeleton className="w-10 h-3" />
+                    </div>
+                  </div>
+                ))
+              ) : pinnedQuery.error ? (
+                <div className="p-5 border border-border rounded-xl bg-surface">
+                  <ErrorCard
+                    message={
+                      !import.meta.env.VITE_GITHUB_TOKEN
+                        ? "Add VITE_GITHUB_TOKEN to .env to load pinned repos."
+                        : "Could not load pinned repositories."
+                    }
+                    onRetry={() => pinnedQuery.refetch()}
+                  />
+                </div>
+              ) : pinned.length === 0 ? (
+                <div className="p-5 border border-border rounded-xl bg-surface">
+                  <ErrorCard message="No pinned repositories found." />
+                </div>
+              ) : (
+                pinned.map((repo, i) => {
+                  const langColor =
+                    repo.primaryLanguage?.color ??
+                    (repo.primaryLanguage?.name
+                      ? "#8b949e"
+                      : "#8b949e");
+                  const updatedAgo = timeAgo(repo.updatedAt);
+                  return (
+                    <FadeIn key={repo.name} delay={i * 0.07}>
+                      <a
+                        href={repo.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group block p-5 border border-border rounded-xl bg-surface hover:border-border-hover hover:bg-[#161616] hover:-translate-y-0.5 transition-all duration-200 hover:shadow-xl hover:shadow-black/25"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 16 16"
+                              className="text-muted shrink-0"
+                              fill="currentColor"
+                            >
+                              <path d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 010-1.5h1.75v-2h-8a1 1 0 000 2h.75a.75.75 0 010 1.5H4.5A2.5 2.5 0 012 13.5v-11zm10.5-1V9h-8c-.356 0-.694.074-1 .208V2.5a1 1 0 011-1h8zM5 12.25v3.25a.25.25 0 00.4.2l1.45-1.087a.25.25 0 01.3 0L8.6 15.7a.25.25 0 00.4-.2v-3.25a.25.25 0 00-.25-.25h-3.5a.25.25 0 00-.25.25z" />
+                            </svg>
+                            <span className="text-sm font-mono font-medium text-primary group-hover:text-white truncate transition-colors">
+                              {repo.name}
+                            </span>
+                          </div>
+                          <ExternalLink
+                            size={11}
+                            className="text-muted group-hover:text-primary transition-colors shrink-0"
+                          />
+                        </div>
+                        <p className="text-xs text-secondary leading-relaxed mb-4 line-clamp-2">
+                          {repo.description || "No description available."}
+                        </p>
+                        <div className="flex items-center gap-4 text-[10px] font-mono text-muted">
+                          {repo.primaryLanguage && (
+                            <span className="flex items-center gap-1.5">
+                              <span
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: langColor }}
+                              />
+                              {repo.primaryLanguage.name}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Star size={9} />
+                            {repo.stargazerCount}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <GitBranch size={9} />
+                            {repo.forkCount}
+                          </span>
+                          <span className="ml-auto">Updated {updatedAgo}</span>
+                        </div>
+                      </a>
+                    </FadeIn>
+                  );
+                })
+              )}
+
+              {/* Extra stats: total stars + forks across all repos */}
+              {(aggregates || aggregatesQuery.isLoading) && (
+                <FadeIn delay={0.1}>
+                  <div className="flex gap-3 mt-1">
+                    {[
+                      {
+                        label: "Total Stars",
+                        icon: Star,
+                        value: aggregates?.stars,
+                      },
+                      {
+                        label: "Total Forks",
+                        icon: GitBranch,
+                        value: aggregates?.forks,
+                      },
+                    ].map(({ label, icon: Icon, value }) => (
+                      <div
+                        key={label}
+                        className="flex-1 p-4 border border-border rounded-xl bg-surface flex items-center gap-2"
+                      >
+                        <Icon size={12} className="text-muted shrink-0" />
+                        <div>
+                          {aggregatesQuery.isLoading ? (
+                            <Skeleton className="w-8 h-4 mb-1" />
+                          ) : (
+                            <p className="text-sm font-semibold text-primary leading-none mb-0.5">
+                              <AnimatedCounter target={value ?? 0} />
+                            </p>
+                          )}
+                          <p className="text-[10px] font-mono text-muted">{label}</p>
+                        </div>
                       </div>
-                      <ExternalLink size={11} className="text-muted group-hover:text-primary transition-colors shrink-0" />
-                    </div>
-                    <p className="text-xs text-secondary leading-relaxed mb-4">{repo.description}</p>
-                    <div className="flex items-center gap-4 text-[10px] font-mono text-muted">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: repo.langColor }} />
-                        {repo.lang}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Star size={9} />
-                        {repo.stars}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <GitBranch size={9} />
-                        {repo.forks}
-                      </span>
-                      <span className="ml-auto">Updated {repo.updatedAt}</span>
-                    </div>
-                  </a>
+                    ))}
+                  </div>
                 </FadeIn>
-              ))}
+              )}
             </div>
           </div>
         </div>

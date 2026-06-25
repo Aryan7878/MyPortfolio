@@ -42,7 +42,9 @@ export function Footer() {
 
           {/* Right: Social links */}
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-mono text-muted mb-1 uppercase tracking-widest">Connect</p>
+            <p className="text-xs font-mono text-muted mb-1 uppercase tracking-widest">
+              Connect
+            </p>
             {socialLinks.map((link) => (
               <a
                 key={link.id}
@@ -50,9 +52,14 @@ export function Footer() {
                 href={link.href}
                 target={link.href.startsWith("mailto") ? "_self" : "_blank"}
                 rel="noopener noreferrer"
+                aria-label={link.label}
                 className="inline-flex items-center gap-2 text-sm text-secondary hover:text-primary transition-colors duration-200 group"
               >
-                <link.icon size={13} className="text-muted group-hover:text-secondary transition-colors" />
+                <link.icon
+                  size={13}
+                  className="text-muted group-hover:text-secondary transition-colors"
+                  aria-hidden="true"
+                />
                 {link.label}
               </a>
             ))}
@@ -65,10 +72,10 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs font-mono text-muted">
-            © {year} Aryan Chaudhary
+            Designed &amp; Built by Aryan Chaudhary &mdash; &copy; {year}
           </p>
           <p className="text-xs font-mono text-muted">
-            Built with React · Vite · Tailwind · Framer Motion
+            React &middot; TypeScript &middot; Vite &middot; Tailwind &middot; Framer Motion
           </p>
         </div>
       </div>

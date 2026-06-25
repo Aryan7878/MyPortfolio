@@ -20,7 +20,9 @@ function useActiveSection() {
       const el = document.getElementById(id);
       if (!el) return;
       const obs = new IntersectionObserver(
-        ([entry]) => { if (entry.isIntersecting) setActive(id); },
+        ([entry]) => {
+          if (entry.isIntersecting) setActive(id);
+        },
         { rootMargin: "-40% 0px -55% 0px" }
       );
       obs.observe(el);
@@ -46,6 +48,9 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
+  // Close menu on route change
+  useEffect(() => setMenuOpen(false), [location]);
+
   return (
     <motion.header
       initial={{ y: -16, opacity: 0 }}
@@ -61,7 +66,7 @@ export function Navbar() {
         {/* Logo */}
         <Link
           to="/"
-          className="font-mono font-medium text-sm text-primary tracking-wider hover:text-accent transition-colors"
+          className="font-mono font-medium text-sm text-primary tracking-wider hover:text-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-sm"
           aria-label="Aryan Chaudhary — Home"
         >
           Aryan Chaudhary
@@ -77,7 +82,8 @@ export function Navbar() {
                 <a
                   key={link.label}
                   href={link.href}
-                  className={`relative px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  aria-current={isActive ? "page" : undefined}
+                  className={`relative px-3 py-1.5 text-sm rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                     isActive
                       ? "text-primary"
                       : "text-secondary hover:text-primary hover:bg-surface"
@@ -102,7 +108,7 @@ export function Navbar() {
           {!isHome && (
             <Link
               to="/"
-              className="px-3.5 py-1.5 text-sm text-secondary hover:text-primary transition-colors"
+              className="px-3.5 py-1.5 text-sm text-secondary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-md"
             >
               ← Back
             </Link>
@@ -111,7 +117,8 @@ export function Navbar() {
             href="/Aryan_Chaudhary_Resume.pdf"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3.5 py-1.5 text-sm border border-border text-primary rounded-md hover:border-border-hover hover:bg-surface transition-all duration-200"
+            aria-label="View Resume (opens in new tab)"
+            className="px-3.5 py-1.5 text-sm border border-border text-primary rounded-md hover:border-border-hover hover:bg-surface transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             Resume
           </a>
@@ -120,13 +127,27 @@ export function Navbar() {
         {/* Mobile menu button */}
         <button
           id="mobile-menu-btn"
-          className="md:hidden flex flex-col gap-1.5 p-2 text-secondary hover:text-primary transition-colors"
+          className="md:hidden flex flex-col gap-1.5 p-2 text-secondary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-md"
           onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle menu"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
         >
-          <span className={`block h-px w-5 bg-current transition-all duration-300 ${menuOpen ? "rotate-45 translate-y-2" : ""}`} />
-          <span className={`block h-px w-5 bg-current transition-all duration-300 ${menuOpen ? "opacity-0" : ""}`} />
-          <span className={`block h-px w-5 bg-current transition-all duration-300 ${menuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+          <span
+            className={`block h-px w-5 bg-current transition-all duration-300 ${
+              menuOpen ? "rotate-45 translate-y-2" : ""
+            }`}
+          />
+          <span
+            className={`block h-px w-5 bg-current transition-all duration-300 ${
+              menuOpen ? "opacity-0" : ""
+            }`}
+          />
+          <span
+            className={`block h-px w-5 bg-current transition-all duration-300 ${
+              menuOpen ? "-rotate-45 -translate-y-2" : ""
+            }`}
+          />
         </button>
       </div>
 
@@ -134,6 +155,9 @@ export function Navbar() {
       <AnimatePresence>
         {menuOpen && (
           <motion.div
+            id="mobile-menu"
+            role="navigation"
+            aria-label="Mobile navigation"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
@@ -141,16 +165,22 @@ export function Navbar() {
             className="md:hidden border-t border-border bg-bg/95 backdrop-blur-md"
           >
             <div className="section-container py-4 flex flex-col gap-1">
-              {isHome && navLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="px-3 py-2.5 text-sm text-secondary hover:text-primary transition-colors rounded-md hover:bg-surface"
-                >
-                  {link.label}
-                </a>
-              ))}
+              {isHome &&
+                navLinks.map((link) => {
+                  const sectionId = link.href.replace("#", "");
+                  const isActive = activeSection === sectionId;
+                  return (
+                    <a
+                      key={link.label}
+                      href={link.href}
+                      onClick={() => setMenuOpen(false)}
+                      aria-current={isActive ? "page" : undefined}
+                      className="px-3 py-2.5 text-sm text-secondary hover:text-primary transition-colors rounded-md hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                    >
+                      {link.label}
+                    </a>
+                  );
+                })}
               {!isHome && (
                 <Link
                   to="/"
