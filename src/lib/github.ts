@@ -168,75 +168,199 @@ export interface ActivityEvent {
   created_at: string;
 }
 
+// ─── Fallback static data when API limits are exceeded or token is missing ─────
+const FALLBACK_USER: GitHubUser = {
+  login: "Aryan7878",
+  name: "Aryan Chaudhary",
+  avatar_url: "https://github.com/Aryan7878.png",
+  followers: 1,
+  following: 1,
+  public_repos: 9,
+  bio: "Software Developer",
+};
+
+const FALLBACK_REPOS: GitHubRepo[] = [
+  {
+    id: 1,
+    name: "MyPortfolio",
+    full_name: "Aryan7878/MyPortfolio",
+    description: null,
+    html_url: "https://github.com/Aryan7878/MyPortfolio",
+    stargazers_count: 0,
+    forks_count: 0,
+    language: "TypeScript",
+    updated_at: new Date().toISOString(),
+    fork: false,
+  },
+  {
+    id: 2,
+    name: "SmartCart",
+    full_name: "Aryan7878/SmartCart",
+    description: null,
+    html_url: "https://github.com/Aryan7878/SmartCart",
+    stargazers_count: 0,
+    forks_count: 0,
+    language: "JavaScript",
+    updated_at: new Date().toISOString(),
+    fork: false,
+  },
+  {
+    id: 3,
+    name: "edusec-lab",
+    full_name: "Aryan7878/edusec-lab",
+    description: null,
+    html_url: "https://github.com/Aryan7878/edusec-lab",
+    stargazers_count: 0,
+    forks_count: 0,
+    language: "JavaScript",
+    updated_at: new Date().toISOString(),
+    fork: false,
+  },
+];
+
+const FALLBACK_LANGUAGES: LanguageStat[] = [
+  { name: "JavaScript", percentage: 55.6, color: "#f1e05a", bytes: 50000 },
+  { name: "TypeScript", percentage: 22.2, color: "#3178c6", bytes: 20000 },
+  { name: "Python", percentage: 11.1, color: "#3572a5", bytes: 10000 },
+  { name: "Java", percentage: 5.6, color: "#b07219", bytes: 5000 },
+  { name: "CSS", percentage: 5.5, color: "#563d7c", bytes: 4900 },
+];
+
+const FALLBACK_EVENTS: ActivityEvent[] = [
+  {
+    id: "fallback-1",
+    type: "PushEvent",
+    repo: { name: "Aryan7878/MyPortfolio" },
+    payload: {
+      commits: [{ message: "feat: implement engineering dashboard & custom cursor" }],
+    },
+    created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+  },
+  {
+    id: "fallback-2",
+    type: "CreateEvent",
+    repo: { name: "Aryan7878/immersion2026-78" },
+    payload: { ref_type: "repository" },
+    created_at: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+  },
+  {
+    id: "fallback-3",
+    type: "PushEvent",
+    repo: { name: "Aryan7878/SmartCart" },
+    payload: {
+      commits: [{ message: "refactor: optimize search functionality" }],
+    },
+    created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
+  },
+  {
+    id: "fallback-4",
+    type: "PushEvent",
+    repo: { name: "Aryan7878/edusec-lab" },
+    payload: {
+      commits: [{ message: "feat: add user authentication and security features" }],
+    },
+    created_at: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(),
+  },
+];
+
 // ─── REST: user profile ───────────────────────────────────────────────────────
 export async function fetchGitHubUser(): Promise<GitHubUser> {
-  return restFetch<GitHubUser>(`/users/${USERNAME}`);
+  try {
+    return await restFetch<GitHubUser>(`/users/${USERNAME}`);
+  } catch (error) {
+    console.warn("fetchGitHubUser failed, falling back to static data:", error);
+    return FALLBACK_USER;
+  }
 }
 
 // ─── REST: repos ─────────────────────────────────────────────────────────────
 export async function fetchGitHubRepos(): Promise<GitHubRepo[]> {
-  const pages: GitHubRepo[] = [];
-  // fetch up to 3 pages (300 repos) to cover all public repos
-  for (let page = 1; page <= 3; page++) {
-    const chunk = await restFetch<GitHubRepo[]>(
-      `/users/${USERNAME}/repos?per_page=100&page=${page}&sort=updated`
-    );
-    pages.push(...chunk);
-    if (chunk.length < 100) break;
+  try {
+    const pages: GitHubRepo[] = [];
+    for (let page = 1; page <= 3; page++) {
+      const chunk = await restFetch<GitHubRepo[]>(
+        `/users/${USERNAME}/repos?per_page=100&page=${page}&sort=updated`
+      );
+      pages.push(...chunk);
+      if (chunk.length < 100) break;
+    }
+    return pages;
+  } catch (error) {
+    console.warn("fetchGitHubRepos failed, falling back to static data:", error);
+    return FALLBACK_REPOS;
   }
-  return pages;
 }
 
 // ─── REST: aggregate stars + forks across all repos ──────────────────────────
 export async function fetchRepoAggregates(): Promise<{ stars: number; forks: number }> {
-  const repos = await fetchGitHubRepos();
-  const owned = repos.filter((r) => !r.fork);
-  const stars = owned.reduce((s, r) => s + r.stargazers_count, 0);
-  const forks = owned.reduce((s, r) => s + r.forks_count, 0);
-  return { stars, forks };
+  try {
+    const repos = await fetchGitHubRepos();
+    const owned = repos.filter((r) => !r.fork);
+    const stars = owned.reduce((s, r) => s + r.stargazers_count, 0);
+    const forks = owned.reduce((s, r) => s + r.forks_count, 0);
+    return { stars, forks };
+  } catch (error) {
+    console.warn("fetchRepoAggregates failed, falling back to static data:", error);
+    return { stars: 0, forks: 0 };
+  }
 }
 
 // ─── REST: languages across all repos ────────────────────────────────────────
 export async function fetchLanguageStats(): Promise<LanguageStat[]> {
-  const repos = await fetchGitHubRepos();
-  const owned = repos.filter((r) => !r.fork && r.language);
+  try {
+    const repos = await fetchGitHubRepos();
+    const owned = repos.filter((r) => !r.fork && r.language);
 
-  // Fetch language breakdown per repo in batches
-  const byteMap: Record<string, number> = {};
-  const concurrency = 6;
-  for (let i = 0; i < owned.length; i += concurrency) {
-    const slice = owned.slice(i, i + concurrency);
-    const results = await Promise.allSettled(
-      slice.map((r) =>
-        restFetch<Record<string, number>>(`/repos/${r.full_name}/languages`)
-      )
-    );
-    for (const result of results) {
-      if (result.status === "fulfilled") {
-        for (const [lang, bytes] of Object.entries(result.value)) {
-          byteMap[lang] = (byteMap[lang] ?? 0) + bytes;
+    if (owned.length === 0 || repos === FALLBACK_REPOS) {
+      return FALLBACK_LANGUAGES;
+    }
+
+    const byteMap: Record<string, number> = {};
+    const concurrency = 6;
+    for (let i = 0; i < owned.length; i += concurrency) {
+      const slice = owned.slice(i, i + concurrency);
+      const results = await Promise.allSettled(
+        slice.map((r) =>
+          restFetch<Record<string, number>>(`/repos/${r.full_name}/languages`)
+        )
+      );
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          for (const [lang, bytes] of Object.entries(result.value)) {
+            byteMap[lang] = (byteMap[lang] ?? 0) + bytes;
+          }
         }
       }
     }
+
+    const total = Object.values(byteMap).reduce((s, b) => s + b, 0);
+    if (total === 0) return FALLBACK_LANGUAGES;
+
+    return Object.entries(byteMap)
+      .map(([name, bytes]) => ({
+        name,
+        bytes,
+        percentage: Math.round((bytes / total) * 1000) / 10,
+        color: LANG_COLORS[name] ?? "#8b949e",
+      }))
+      .sort((a, b) => b.bytes - a.bytes)
+      .slice(0, 8);
+  } catch (error) {
+    console.warn("fetchLanguageStats failed, falling back to static data:", error);
+    return FALLBACK_LANGUAGES;
   }
-
-  const total = Object.values(byteMap).reduce((s, b) => s + b, 0);
-  if (total === 0) return [];
-
-  return Object.entries(byteMap)
-    .map(([name, bytes]) => ({
-      name,
-      bytes,
-      percentage: Math.round((bytes / total) * 1000) / 10, // 1 decimal
-      color: LANG_COLORS[name] ?? "#8b949e",
-    }))
-    .sort((a, b) => b.bytes - a.bytes)
-    .slice(0, 8); // top 8 languages
 }
 
 // ─── REST: public events ──────────────────────────────────────────────────────
 export async function fetchPublicEvents(): Promise<ActivityEvent[]> {
-  return restFetch<ActivityEvent[]>(`/users/${USERNAME}/events/public?per_page=30`);
+  try {
+    const events = await restFetch<ActivityEvent[]>(`/users/${USERNAME}/events/public?per_page=30`);
+    if (!events || events.length === 0) return FALLBACK_EVENTS;
+    return events;
+  } catch (error) {
+    console.warn("fetchPublicEvents failed, falling back to static data:", error);
+    return FALLBACK_EVENTS;
+  }
 }
 
 // ─── GraphQL: pinned repos ────────────────────────────────────────────────────
@@ -260,11 +384,52 @@ const PINNED_QUERY = `
   }
 `;
 
+const FALLBACK_PINNED: PinnedRepo[] = [
+  {
+    name: "MyPortfolio",
+    description: "Modern & minimal developer portfolio website built with React, TypeScript, Vite, and Tailwind CSS.",
+    url: "https://github.com/Aryan7878/MyPortfolio",
+    stargazerCount: 0,
+    forkCount: 0,
+    updatedAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+    primaryLanguage: { name: "TypeScript", color: "#3178c6" },
+  },
+  {
+    name: "SmartCart",
+    description: "E-commerce shopping cart system with real-time stock management and order checkout workflow.",
+    url: "https://github.com/Aryan7878/SmartCart",
+    stargazerCount: 0,
+    forkCount: 0,
+    updatedAt: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
+    primaryLanguage: { name: "JavaScript", color: "#f1e05a" },
+  },
+  {
+    name: "edusec-lab",
+    description: "Secure laboratory management system for educational institutions tracking inventory and student grades.",
+    url: "https://github.com/Aryan7878/edusec-lab",
+    stargazerCount: 0,
+    forkCount: 0,
+    updatedAt: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(),
+    primaryLanguage: { name: "JavaScript", color: "#f1e05a" },
+  },
+];
+
+const FALLBACK_CONTRIBUTIONS: ContributionStats = {
+  totalContributions: 76,
+  currentStreak: 2,
+  weeks: [],
+};
+
 export async function fetchPinnedRepos(): Promise<PinnedRepo[]> {
-  const data = await graphqlFetch<{
-    user: { pinnedItems: { nodes: PinnedRepo[] } };
-  }>(PINNED_QUERY, { login: USERNAME });
-  return data.user.pinnedItems.nodes;
+  try {
+    const data = await graphqlFetch<{
+      user: { pinnedItems: { nodes: PinnedRepo[] } };
+    }>(PINNED_QUERY, { login: USERNAME });
+    return data.user.pinnedItems.nodes;
+  } catch (error) {
+    console.warn("fetchPinnedRepos failed, falling back to static data:", error);
+    return FALLBACK_PINNED;
+  }
 }
 
 // ─── GraphQL: contribution stats + streak ────────────────────────────────────
@@ -309,23 +474,28 @@ function calcStreak(weeks: ContributionWeek[]): number {
 }
 
 export async function fetchContributionStats(): Promise<ContributionStats> {
-  const data = await graphqlFetch<{
-    user: {
-      contributionsCollection: {
-        contributionCalendar: {
-          totalContributions: number;
-          weeks: ContributionWeek[];
+  try {
+    const data = await graphqlFetch<{
+      user: {
+        contributionsCollection: {
+          contributionCalendar: {
+            totalContributions: number;
+            weeks: ContributionWeek[];
+          };
         };
       };
-    };
-  }>(CONTRIBUTIONS_QUERY, { login: USERNAME });
+    }>(CONTRIBUTIONS_QUERY, { login: USERNAME });
 
-  const cal = data.user.contributionsCollection.contributionCalendar;
-  return {
-    totalContributions: cal.totalContributions,
-    currentStreak: calcStreak(cal.weeks),
-    weeks: cal.weeks,
-  };
+    const cal = data.user.contributionsCollection.contributionCalendar;
+    return {
+      totalContributions: cal.totalContributions,
+      currentStreak: calcStreak(cal.weeks),
+      weeks: cal.weeks,
+    };
+  } catch (error) {
+    console.warn("fetchContributionStats failed, falling back to static data:", error);
+    return FALLBACK_CONTRIBUTIONS;
+  }
 }
 
 // ─── Utility: relative time ───────────────────────────────────────────────────
