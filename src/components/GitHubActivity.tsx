@@ -620,11 +620,11 @@ export function GitHubActivity() {
                             </span>
                           )}
                           <span className="flex items-center gap-1">
-                            <Star size={9} />
+                            <Star size={12} />
                             {repo.stargazerCount}
                           </span>
                           <span className="flex items-center gap-1">
-                            <GitBranch size={9} />
+                            <GitBranch size={12} />
                             {repo.forkCount}
                           </span>
                           <span className="ml-auto">Updated {updatedAgo}</span>
